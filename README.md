@@ -83,7 +83,8 @@ There's **no enrollment**. The decision is how clearly you said the exact phrase
 
 - **No baseline** — judged in absolute terms ("does this sound like a clear, alert 'I'm awake'?"), not against a personal recording. Simpler, zero setup; the *plan* is still personalized via the onboarding wake-speed.
 - **Gemini only when unsure**, and it still **transcribes and rejects wrong words** before judging alertness.
-- **Offline → fully on-device**, alarm always dismissible. Gemini Flash is audio-native (raw clip, no spectrogram); key stays server-side via the [proxy](backend/); cloud judging is opt-in.
+- **Offline → fully on-device**, alarm always dismissible. Gemini Flash is audio-native (raw clip, no spectrogram).
+- **Default: the app calls Gemini directly** ([`GeminiDirectJudge`](Wake/Wake/Services/Voice/GeminiDirectJudge.swift)) with your own key (from a gitignored `Secrets.xcconfig`, protected by a budget cap) — no server to run. The [`backend/`](backend/) proxy is kept as an optional path if you ever go public and want the key off-device.
 
 **Local scoring fix:** `clarity` was being counted twice (once inside the match score, once alongside it). It's now **excluded from the match score** ([`VoiceSignature.similarity`](Wake/Wake/Services/Voice/VoiceSignature.swift) is purely the other acoustic features) and added once in the final judgment: `judgment = clarity·0.5 + matchScore·0.5`.
 

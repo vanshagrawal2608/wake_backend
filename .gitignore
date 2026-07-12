@@ -2,6 +2,9 @@
 .env
 *.env
 *secret*
+Secrets.xcconfig
+# The template below IS committed (contains no key):
+!Secrets.example.xcconfig
 # ---- Python backend ----
 backend/.venv/
 __pycache__/

@@ -21,12 +21,18 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wake.app
+    # Your Gemini key comes from Secrets.xcconfig (gitignored). Copy the example first:
+    #   cp Secrets.example.xcconfig Secrets.xcconfig   # then paste your key
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
     # Generated Info.plist — free personal signing friendly (no paid-only entitlements).
     info:
       path: Wake/Info.plist
       properties:
         UIUserInterfaceStyle: Dark            # Wake commits to the night world
         UIBackgroundModes: [audio]            # legitimately plays the wake soundscape
+        WakeGeminiKey: "$(WAKE_GEMINI_KEY)"   # injected from Secrets.xcconfig, never committed
         NSHealthShareUsageDescription: "Wake reads your sleep data to learn how long you take to wake up."
         NSMotionUsageDescription: "Wake reads your motion history to estimate when you fell asleep."
         NSMicrophoneUsageDescription: "Wake listens for “I’m awake” to decide whether to stop the alarm."

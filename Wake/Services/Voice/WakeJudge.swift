@@ -26,9 +26,17 @@ enum WakeThresholds {
     static let acceptOffline = 0.65   // offline, no LLM backup → lower bar to still let you up
 }
 
-// MARK: - Gemini (single clip, via the backend proxy)
+// MARK: - Cloud judge (swappable: direct-to-Gemini, or a hosted proxy)
 
-struct GeminiWakeJudge {
+/// A cloud call that judges one clip. Implemented by `GeminiDirectJudge` (default) or
+/// `GeminiWakeJudge` (optional backend proxy — kept for if you ever go public).
+protocol CloudWakeJudging {
+    func judge(morningAudio: Data, heardPhrase: Bool, localClarity: Double) async throws -> WakeDecision
+}
+
+// MARK: - Optional hosted proxy (unused on the direct path)
+
+struct GeminiWakeJudge: CloudWakeJudging {
     let backendURL: URL
     let sharedSecret: String
     var timeout: TimeInterval = 8
@@ -66,7 +74,7 @@ struct GeminiWakeJudge {
 // MARK: - Resilient (local-first, Gemini when unsure) — the one the app uses
 
 struct ResilientWakeJudge: WakeJudge {
-    let cloud: GeminiWakeJudge?          // nil when cloud judging is off
+    let cloud: (any CloudWakeJudging)?   // nil when cloud judging is off
 
     func judge(clarity: Double, heardPhrase: Bool, morningAudio: Data?) async -> WakeDecision {
         // Must have said the phrase at all.

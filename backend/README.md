@@ -1,9 +1,12 @@
-# Wake voice-match backend (Gemini 2.5 Flash)
+# Wake voice-judge backend (Gemini) — OPTIONAL
 
-A thin proxy so the iPhone never holds the API key. It receives two short audio
-clips (enrolled baseline + this morning's "I'm awake") plus the numeric acoustic
-features, asks **Gemini 2.5 Flash** (audio-native) to compare them, and returns a
-small JSON verdict.
+> **Not used on the default (personal) setup.** The app now calls Gemini **directly**
+> ([`GeminiDirectJudge`](../Wake/Wake/Services/Voice/GeminiDirectJudge.swift)) with your own
+> key — no server needed (see [`../GO-LIVE.md`](../GO-LIVE.md)). Keep this backend only if you
+> later go **public** and want the key off-device.
+
+A thin proxy so the iPhone never holds the API key. It receives the morning "I'm awake"
+clip, asks **Gemini** (audio-native) to judge it, and returns a small JSON verdict.
 
 ```
 POST /match
