@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Wake reads your sleep data to learn how long you take to wake up.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Wake listens for “I’m awake” to decide whether to stop the alarm.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Wake reads your motion history to estimate when you fell asleep.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Wake recognises your voice on-device to confirm you’re awake.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+	<key>WakeGeminiKey</key>
+	<string>$(WAKE_GEMINI_KEY)</string>
+</dict>
+</plist>

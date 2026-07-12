@@ -44,16 +44,18 @@ final class AppState {
          scheduler: AlarmScheduling = AlarmKitScheduler(),
          voice: VoiceWakeVerifying = VoiceWakeVerifier()) {
         self.store = store
-        self.prediction = prediction
         self.learning = LearningEngine(store: store)
         self.scheduler = scheduler
         self.voice = voice
         self.deadline = .default
-        // Seed the prediction model's cold-start from the onboarding wake-speed.
-        self.prediction.model = HeuristicWakeDurationModel(coldStart: wakeSpeed.coldStartMinutes)
-        // Seed plan
-        self.plan = self.prediction.plan(deadline: .default,
-                                         inputs: LearningEngine(store: store).inputs())
+
+        // Seed the prediction model's cold-start from the persisted wake-speed, using
+        // locals so we don't touch `self` before every stored property is initialized.
+        let speed = WakeSpeed(rawValue: UserDefaults.standard.string(forKey: "wake.speed") ?? "") ?? .gradual
+        var engine = prediction
+        engine.model = HeuristicWakeDurationModel(coldStart: speed.coldStartMinutes)
+        self.prediction = engine
+        self.plan = engine.plan(deadline: .default, inputs: LearningEngine(store: store).inputs())
     }
 
     func recomputePlan() {
