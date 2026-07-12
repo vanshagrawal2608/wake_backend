@@ -3,6 +3,7 @@ import SwiftUI
 /// "Tonight" — set the deadline, see the predicted sunrise curve.
 struct HomeView: View {
     @Environment(AppState.self) private var app
+    @State private var showWake = false
 
     var body: some View {
         NavigationStack {
@@ -10,6 +11,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     header
                     deadlineCard
+                    testWakeButton
                     if let est = app.lastSleepEstimate { sleepLine(est) }
                     curveCard
                     Text("Wake never jumps to maximum. It starts almost silent and climbs only as far as it needs to get you up.")
@@ -21,13 +23,32 @@ struct HomeView: View {
                 .padding(20)
             }
             .background(NightBackground())
-            .navigationTitle("Tonight")
+            .navigationTitle("Home")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Arm") { app.arm() }.fontWeight(.semibold)
                 }
             }
+            .fullScreenCover(isPresented: $showWake) { WakeSequenceView() }
             .task { await app.refreshSleep() }        // reconcile last night's sleep on open
+        }
+    }
+
+    /// Temporary entry to exercise the live wake experience (voice → Gemini) on device,
+    /// until the wake view is folded into the Home "current wake-up" section.
+    private var testWakeButton: some View {
+        Button { showWake = true } label: {
+            HStack {
+                Image(systemName: "sun.horizon.fill")
+                Text("Test the wake-up now").fontWeight(.bold)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold))
+            }
+            .font(.system(size: 16))
+            .foregroundStyle(Color(hex: 0x20090C))
+            .padding(16)
+            .background(LinearGradient(colors: [Theme.i2, Theme.i3], startPoint: .leading, endPoint: .trailing),
+                        in: RoundedRectangle(cornerRadius: 18))
         }
     }
 

@@ -4,6 +4,7 @@ import SwiftUI
 /// confirmation is the only thing that stops the alarm (and only if you sound awake).
 struct WakeSequenceView: View {
     @Environment(AppState.self) private var app
+    @Environment(\.dismiss) private var dismiss
     @State private var stageIndex = 2
     @State private var voice: WakeSession.VoiceFeedback = .idle
     @State private var listening = false
@@ -27,6 +28,11 @@ struct WakeSequenceView: View {
             .background(NightBackground())
             .navigationTitle("Waking you")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Close") { app.voice.stop(); dismiss() }
+                }
+            }
         }
     }
 
@@ -131,14 +137,9 @@ struct WakeSequenceView: View {
             let authorized = await app.voice.requestAuthorization()
             guard authorized else { await simulate(); return }
 
-            app.voice.listen { r in
-                Task { @MainActor in
-                    self.reading = r
-                    if r.isFinal { await self.decide(r) }
-                }
-            }
-            try? await Task.sleep(for: .seconds(5))         // give the user time, then finalize
-            app.voice.stop()
+            let r = await app.voice.capture(seconds: 3.5)   // record → recognise on-device
+            await MainActor.run { self.reading = r }
+            await decide(r)                                 // clarity → Gemini only if unsure
         }
     }
 
