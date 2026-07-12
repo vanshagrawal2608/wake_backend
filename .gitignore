@@ -1,0 +1,20 @@
+# ---- Secrets (never commit) ----
+.env
+*.env
+*secret*
+# ---- Python backend ----
+backend/.venv/
+__pycache__/
+*.pyc
+# ---- Test audio clips ----
+*.aiff
+*.aif
+# ---- macOS ----
+.DS_Store
+# ---- Xcode / build output ----
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+Wake.xcodeproj/

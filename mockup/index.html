@@ -1,0 +1,478 @@
+<title>Wake — Adaptive AI Alarm</title>
+<style>
+  :root{
+    --night-0:#0A0406; --night-1:#0E0608; --night-2:#160A0D;
+    --card:#1C0E12; --card-2:#22111A;
+    --hair:rgba(255,255,255,.06); --hair-2:rgba(255,255,255,.11);
+    --text:#F4EAEC; --muted:#A78A90; --faint:#6E5157;
+    --i0:#7E2A38; --i1:#A62F42; --i2:#D03B44; --i3:#F2603F;
+    --good:#E6B15E; --radius:26px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(120% 95% at 50% 120%, rgba(242,96,63,.24), transparent 55%),
+      radial-gradient(100% 72% at 50% 110%, rgba(208,59,68,.20), transparent 60%),
+      radial-gradient(150% 100% at 50% -12%, rgba(126,42,56,.24), transparent 58%),
+      linear-gradient(180deg,#12070A,var(--night-0));
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:34px 16px 60px;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{width:100%;max-width:392px;display:flex;flex-direction:column;gap:20px}
+  .kicker{text-align:center;color:var(--muted);font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  .kicker b{color:var(--text)}
+
+  .phone{position:relative;width:100%;aspect-ratio:390/844;border-radius:52px;
+    background:linear-gradient(180deg,var(--night-2),var(--night-1) 42%,var(--night-0));
+    border:1px solid var(--hair-2);
+    box-shadow:0 40px 120px -30px rgba(0,0,0,.85),0 0 0 10px #000,0 0 0 11px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06);
+    overflow:hidden;}
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:118px;height:32px;background:#000;border-radius:20px;z-index:40}
+  .statusbar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;z-index:30}
+  .screen{position:absolute;inset:0;top:52px;bottom:74px;overflow-y:auto;overflow-x:hidden;padding:6px 20px 26px;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .view{display:none;animation:fade .45s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  h1.title{font-size:29px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:10px 0 2px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 16px;font-weight:500}
+  .lbl{color:var(--faint);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+  .card{background:radial-gradient(120% 140% at 100% 0,rgba(242,96,63,.06),transparent 45%),linear-gradient(180deg,var(--card),var(--card-2));
+    border:1px solid var(--hair);border-radius:var(--radius);padding:18px}
+  .card+.card{margin-top:14px}
+
+  /* ---- Home: current wake-up (top) ---- */
+  .wakehead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+  .wakehead .lbl{color:var(--i2)}
+  .chev{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:4px}
+  .sleepline{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;font-weight:600;margin:2px 0 6px}
+  .sleepline b{color:var(--text)}
+
+  .halo-wrap{display:flex;flex-direction:column;align-items:center}
+  .hold{position:relative;width:214px;height:214px;display:grid;place-items:center;margin:8px 0 4px;cursor:pointer;user-select:none;touch-action:none}
+  .hold svg.ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+  .hold .track{fill:none;stroke:var(--hair-2);stroke-width:3}
+  .hold .prog{fill:none;stroke:url(#holdgrad);stroke-width:5;stroke-linecap:round;stroke-dasharray:635;stroke-dashoffset:635;transition:stroke-dashoffset .12s linear}
+  .hold.holding .prog{transition:stroke-dashoffset 1.15s linear;stroke-dashoffset:0}
+  .hold .glow{position:absolute;inset:22px;border-radius:50%;background:radial-gradient(circle,var(--live-c),rgba(126,42,56,.22) 46%,transparent 70%);filter:blur(8px);opacity:.5;animation:breathe 3.6s ease-in-out infinite}
+  .hold.holding .glow{animation:none;opacity:.85;transform:scale(1.05)}
+  @keyframes breathe{0%,100%{transform:scale(.9);opacity:.38}50%{transform:scale(1.05);opacity:.68}}
+  .hold .inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+  .hold .stagenum{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .hold .stagename{font-size:25px;font-weight:800}
+  .hold .hint{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px}
+  .hold .hint b{color:var(--i3)}
+  .ladder{display:flex;gap:6px;margin:4px 0 14px}
+  .ladder i{width:24px;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}
+  .ladder i.on{background:var(--live-c);box-shadow:0 0 10px var(--live-c)}
+  .voicefeed{min-height:20px;font-size:13.5px;font-weight:600;color:var(--muted);text-align:center;margin-bottom:10px}
+  .voicefeed b{color:var(--good)} .voicefeed.warn b{color:var(--i2)}
+  .rowbtns{display:flex;gap:10px;width:100%}
+  .ghost{flex:1;padding:13px;border-radius:16px;border:1px solid var(--hair-2);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;font-weight:700;cursor:pointer}
+  .ghost:active{transform:scale(.97)}
+  .netchip{align-self:center;margin-top:10px;background:none;border:none;color:var(--faint);font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px}
+  .netchip.off{color:var(--i2)}
+
+  .collapsed .halo-wrap{display:none}
+  .compactbar{display:none;align-items:center;gap:12px;padding:4px 2px}
+  .collapsed .compactbar{display:flex}
+  .compactbar .big{font-size:18px;font-weight:800}
+  .compactbar .mut{color:var(--muted);font-size:13px;font-weight:600}
+
+  /* ---- Home: alarms (bottom) ---- */
+  .sectionhead{display:flex;align-items:center;justify-content:space-between;margin:22px 2px 8px}
+  .sectionhead .t{font-size:19px;font-weight:800}
+  .addbtn{background:rgba(255,255,255,.06);border:1px solid var(--hair-2);color:var(--text);width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1}
+  .alarm{cursor:pointer}
+  .alarm .arow{display:flex;align-items:center;gap:14px}
+  .alarm .time{font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
+  .alarm .time .ap{font-size:15px;color:var(--muted);font-weight:700}
+  .alarm .meta{flex:1}
+  .alarm .meta .d{color:var(--muted);font-size:12.5px;font-weight:600;margin-top:2px}
+  .toggle{width:46px;height:28px;border-radius:20px;background:var(--i2);position:relative;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+  .toggle::after{content:"";position:absolute;top:3px;left:21px;width:22px;height:22px;border-radius:50%;background:#fff}
+  .toggle.off{background:rgba(255,255,255,.12)} .toggle.off::after{left:3px}
+  .expand{max-height:0;overflow:hidden;transition:max-height .4s ease}
+  .alarm.open .expand{max-height:520px}
+  .planwrap{padding-top:14px;margin-top:12px;border-top:1px solid var(--hair)}
+  .curvehead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px}
+  .curvehead .big{font-size:16px;font-weight:700}
+  svg.curve{width:100%;height:120px;display:block;overflow:visible}
+  .legend{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;margin-top:4px;font-weight:600}
+  .nudge{display:flex;gap:10px;margin-top:12px}
+  .nudge button{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--hair-2);color:var(--text);font-size:14px;font-weight:600;padding:10px 0;border-radius:12px;cursor:pointer}
+  .stagelist{margin-top:8px}
+  .stage{display:flex;align-items:center;gap:12px;padding:10px 2px;border-top:1px solid var(--hair)}
+  .stage:first-child{border-top:none}
+  .stage .dot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 10px var(--c)}
+  .stage .t{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;width:52px}
+  .stage .n{font-weight:600;font-size:14px;flex:1}
+  .stage .dd{color:var(--muted);font-size:12px;text-align:right}
+
+  /* ---- History ---- */
+  .hcard .htop{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .hcard .day{font-size:15px;font-weight:800}
+  .hcard .dl{color:var(--muted);font-size:13px;font-weight:700}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px}
+  .pill.good{background:rgba(230,177,94,.15);color:var(--good)}
+  .pill.warn{background:rgba(208,59,68,.16);color:var(--i2)}
+  .hstats{display:flex;gap:16px;margin-top:12px}
+  .hstat .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+  .hstat .k{color:var(--faint);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+  .followed{display:flex;gap:5px;margin-top:12px;align-items:flex-end;height:34px}
+  .followed i{flex:1;border-radius:3px 3px 0 0;background:var(--c);opacity:.9}
+
+  /* ---- Insights (yesterday) ---- */
+  .ring-wrap{display:flex;align-items:center;gap:18px}
+  .accnum{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums}
+  .accnum small{font-size:18px;color:var(--muted)}
+  .row2{display:flex;gap:12px}
+  .row2 .card{flex:1;margin:0;padding:15px}
+  .statv{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px}
+  .statv small{font-size:13px;color:var(--muted);font-weight:600}
+  .insightline{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--hair)}
+  .insightline:first-child{border-top:none}
+  .insightline .ic{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:15px;background:rgba(208,59,68,.16);color:var(--i2)}
+  .insightline .tx{font-size:14px;line-height:1.4}
+  .insightline .tx b{font-weight:700}.insightline .tx span{color:var(--muted)}
+
+  /* ---- Tab bar ---- */
+  .tabbar{position:absolute;bottom:0;left:0;right:0;height:74px;padding-bottom:14px;display:flex;background:rgba(14,6,8,.72);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border-top:1px solid var(--hair);z-index:30}
+  .tabbar button{flex:1;background:none;border:none;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:600;cursor:pointer;padding-top:12px}
+  .tabbar button.active{color:var(--text)}
+  .tabbar button.active svg{stroke:var(--i2)}
+  .tabbar svg{width:24px;height:24px}
+  .handle{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,.28);z-index:40}
+
+  /* ---- Onboarding ---- */
+  .onboard{position:absolute;inset:0;z-index:60;background:rgba(6,3,4,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:26px}
+  .onboard.show{display:flex}
+  .obcard{width:100%;background:linear-gradient(180deg,var(--card),var(--night-1));border:1px solid var(--hair-2);border-radius:28px;padding:26px 22px 24px;text-align:center;animation:pop .35s ease}
+  @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+  .obdots{display:flex;gap:6px;justify-content:center;margin-bottom:18px}
+  .obdots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.15)}
+  .obdots i.on{background:var(--i2);width:20px;border-radius:4px}
+  .obtitle{font-size:22px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px}
+  .obsub{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:20px}
+  .obtime{font-size:56px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:6px 0 4px;
+    background:linear-gradient(180deg,#FBEDE9,#E9B7AC);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .obtime .ap{font-size:20px;-webkit-text-fill-color:var(--muted)}
+  .obnudge{display:flex;gap:10px;justify-content:center;margin:14px 0 22px}
+  .obnudge button{background:rgba(255,255,255,.06);border:1px solid var(--hair-2);color:var(--text);font-size:14px;font-weight:600;padding:9px 16px;border-radius:12px;cursor:pointer}
+  .opts{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+  .opt{display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--hair-2);background:rgba(255,255,255,.03);cursor:pointer;transition:.15s}
+  .opt.sel{border-color:var(--i2);background:rgba(208,59,68,.12)}
+  .opt .oi{font-size:20px;width:26px;text-align:center}
+  .opt .ot b{display:block;font-size:15px;font-weight:700}
+  .opt .ot span{font-size:12px;color:var(--muted)}
+  .obbtn{width:100%;padding:15px;border-radius:16px;border:none;cursor:pointer;font-size:16px;font-weight:800;color:#20090C;
+    background:linear-gradient(90deg,var(--i2),var(--i3))}
+  .obbtn:disabled{opacity:.4}
+  .obskip{margin-top:12px;background:none;border:none;color:var(--faint);font-size:13px;font-weight:600;cursor:pointer}
+
+  .foot{color:var(--faint);font-size:12px;text-align:center;line-height:1.55;max-width:360px;margin:0 auto}
+  .foot b{color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <div class="kicker"><b>Wake</b> · adaptive alarm — final UI mock</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>8:38</span><span>􀙇 􀖀 􀛨</span></div>
+
+    <svg width="0" height="0"><defs>
+      <linearGradient id="holdgrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#A62F42"/><stop offset="1" stop-color="#F2603F"/>
+      </linearGradient>
+      <linearGradient id="curvegrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#7E2A38"/><stop offset=".4" stop-color="#A62F42"/>
+        <stop offset=".72" stop-color="#D03B44"/><stop offset="1" stop-color="#F2603F"/>
+      </linearGradient>
+    </defs></svg>
+
+    <div class="screen">
+      <!-- ================= HOME ================= -->
+      <section class="view active" data-view="home">
+        <!-- top: current wake-up -->
+        <div class="card" id="wakeCard" style="--live-c:var(--i1)">
+          <div class="wakehead">
+            <span class="lbl">Waking you now</span>
+            <button class="chev" onclick="toggleWake()" id="wakeChev">􀄥</button>
+          </div>
+
+          <div class="compactbar">
+            <span class="big">8:38</span>
+            <span class="mut">Stage 3 · deadline 8:50</span>
+          </div>
+
+          <div class="halo-wrap">
+            <div class="sleepline">􀟪 Asleep <b>1:05 AM</b> · slept <b>7h 33m</b></div>
+            <div class="hold" id="holdBtn">
+              <svg class="ring" viewBox="0 0 214 214"><circle class="track" cx="107" cy="107" r="101"/><circle class="prog" id="holdProg" cx="107" cy="107" r="101"/></svg>
+              <div class="glow"></div>
+              <div class="inner">
+                <div class="stagenum" id="hStageNum">Stage 3 of 7</div>
+                <div class="stagename" id="hStageName">Light + hum</div>
+                <div class="hint" id="holdHint">Hold to say <b>“I’m awake”</b></div>
+              </div>
+            </div>
+            <div class="ladder" id="ladder"></div>
+            <div class="voicefeed" id="voiceFeed">Only a clear “I’m awake” — checked by Gemini — stops the alarm.</div>
+            <div class="rowbtns"><button class="ghost" onclick="stillWaking()">I’m still waking up</button></div>
+            <button class="netchip" id="netChip" onclick="toggleNet()">􀙇 Online — Gemini available</button>
+          </div>
+        </div>
+
+        <!-- bottom: alarms set -->
+        <div class="sectionhead"><span class="t">Alarms</span><button class="addbtn">+</button></div>
+
+        <div class="card alarm" id="alarm1" onclick="toggleAlarm('alarm1',event)">
+          <div class="arow">
+            <div class="time"><span id="dlTime">8:50</span><span class="ap">AM</span></div>
+            <div class="meta">
+              <div class="lbl">Be awake by · weekdays</div>
+              <div class="d">Window begins ~<b id="beginTime" style="color:var(--i2)">8:24</b> · <span id="winMin">26</span>-min plan</div>
+            </div>
+            <div class="toggle" onclick="event.stopPropagation()"></div>
+          </div>
+          <div class="expand"><div class="planwrap">
+            <div class="curvehead"><div class="big">Ideal wake-up plan</div><span class="lbl">predicted</span></div>
+            <svg class="curve" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0,110 C70,108 120,92 175,66 C215,48 250,20 320,6" fill="none" stroke="url(#curvegrad)" stroke-width="3.5" stroke-linecap="round"/>
+              <circle cx="0" cy="110" r="4" fill="#7E2A38"/><circle cx="150" cy="80" r="4" fill="#B83644"/>
+              <circle cx="255" cy="32" r="4.5" fill="#E44C40"/><circle cx="320" cy="6" r="5.5" fill="#F2603F"/>
+            </svg>
+            <div class="legend"><span>gentle · maroon</span><span>emergency · ember</span></div>
+            <div class="stagelist" id="stageList"></div>
+            <div class="nudge">
+              <button onclick="bump(-5,event)">− 5 min</button><button onclick="bump(5,event)">+ 5 min</button>
+            </div>
+          </div></div>
+        </div>
+
+        <div class="card alarm" style="opacity:.65" onclick="toggleAlarm('alarm2',event)" id="alarm2">
+          <div class="arow">
+            <div class="time"><span>7:15</span><span class="ap">AM</span></div>
+            <div class="meta"><div class="lbl">Be awake by · Sat</div><div class="d">Window begins ~6:41 · 34-min plan</div></div>
+            <div class="toggle off" onclick="event.stopPropagation()"></div>
+          </div>
+          <div class="expand"><div class="planwrap"><div class="sub" style="margin:0">Weekend plan runs longer — you wake ~11 min slower on Saturdays.</div></div></div>
+        </div>
+      </section>
+
+      <!-- ================= HISTORY ================= -->
+      <section class="view" data-view="history">
+        <h1 class="title">History</h1>
+        <p class="sub">Your last two mornings, and how the plan played out.</p>
+
+        <div class="card hcard">
+          <div class="htop"><div><div class="day">Yesterday · Thu</div><div class="dl">Deadline 8:50 AM</div></div>
+            <span class="pill good">􀆀 Up 3 min early</span></div>
+          <div class="followed" id="hb1"></div>
+          <div class="hstats">
+            <div class="hstat"><div class="v">24 min</div><div class="k">Wake dur.</div></div>
+            <div class="hstat"><div class="v">1×</div><div class="k">“still waking”</div></div>
+            <div class="hstat"><div class="v">8:47</div><div class="k">Out of bed</div></div>
+            <div class="hstat"><div class="v">􀊱</div><div class="k">Voice · Gemini</div></div>
+          </div>
+        </div>
+
+        <div class="card hcard">
+          <div class="htop"><div><div class="day">Wed</div><div class="dl">Deadline 8:50 AM</div></div>
+            <span class="pill warn">􀄩 Up 4 min late</span></div>
+          <div class="followed" id="hb2"></div>
+          <div class="hstats">
+            <div class="hstat"><div class="v">33 min</div><div class="k">Wake dur.</div></div>
+            <div class="hstat"><div class="v">3×</div><div class="k">“still waking”</div></div>
+            <div class="hstat"><div class="v">8:54</div><div class="k">Out of bed</div></div>
+            <div class="hstat"><div class="v">􀊱</div><div class="k">Voice · local</div></div>
+          </div>
+        </div>
+
+        <p class="sub" style="margin-top:14px;font-size:12.5px">Wake keeps only your last 2 mornings in context — recent behaviour is weighted highest when planning tomorrow.</p>
+      </section>
+
+      <!-- ================= INSIGHTS (yesterday) ================= -->
+      <section class="view" data-view="insights">
+        <h1 class="title">Yesterday</h1>
+        <p class="sub">Thursday · one good morning.</p>
+
+        <div class="card">
+          <div class="lbl">Wake accuracy</div>
+          <div class="ring-wrap" style="margin-top:12px">
+            <svg width="90" height="90" viewBox="0 0 92 92">
+              <circle cx="46" cy="46" r="38" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="9"/>
+              <circle cx="46" cy="46" r="38" fill="none" stroke="var(--good)" stroke-width="9" stroke-linecap="round" stroke-dasharray="238.7" stroke-dashoffset="14" transform="rotate(-90 46 46)"/>
+            </svg>
+            <div><div class="accnum">3<small> min</small></div>
+              <div style="color:var(--muted);font-size:13px;font-weight:600">up before your deadline</div></div>
+          </div>
+        </div>
+
+        <div class="row2" style="margin-top:14px">
+          <div class="card"><div class="lbl">Slept</div><div class="statv">7:33</div><div style="color:var(--faint);font-size:12px;font-weight:600;margin-top:6px">goal 7:30 ✓</div></div>
+          <div class="card"><div class="lbl">Wake duration</div><div class="statv">24<small> min</small></div><div class="pill good" style="margin-top:8px">􀄩 2 min faster</div></div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="lbl" style="margin-bottom:6px">What Wake learned yesterday</div>
+          <div class="insightline"><div class="ic">􀆺</div><div class="tx"><b>You woke faster than usual.</b> <span>Tomorrow’s window starts 2 min later — a little more sleep.</span></div></div>
+          <div class="insightline"><div class="ic">􀊱</div><div class="tx"><b>Gemini confirmed you at stage 4.</b> <span>Clear “I’m awake”, matched your baseline — no extra escalation needed.</span></div></div>
+          <div class="insightline"><div class="ic">􀟪</div><div class="tx"><b>Later night, slightly slower wake.</b> <span>Asleep at 1:05 AM vs your 12:30 average.</span></div></div>
+        </div>
+      </section>
+    </div>
+
+    <nav class="tabbar">
+      <button class="active" onclick="go('home',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 9.5V21h14V9.5"/></svg>Home</button>
+      <button onclick="go('history',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 4v4h4M12 8v4l3 2"/></svg>History</button>
+      <button onclick="go('insights',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Insights</button>
+    </nav>
+    <div class="handle"></div>
+
+    <!-- Onboarding -->
+    <div class="onboard show" id="onboard">
+      <div class="obcard" id="obCard"></div>
+    </div>
+  </div>
+
+  <p class="foot">Complete the <b>onboarding</b>, then: hold the central button to speak, tap an alarm to see its plan, and check <b>History</b> &amp; <b>Yesterday</b>. Tell me what to change.</p>
+</div>
+
+<script>
+  /* ---------- data ---------- */
+  const STAGES=[
+    {t:0,name:"Soft",d:"birdsong · rain",c:"#7E2A38"},
+    {t:7,name:"Gentle music",d:"ambient track, low",c:"#97304A"},
+    {t:14,name:"Light + hum",d:"screen glows · buzz",c:"#B83644"},
+    {t:19,name:"Notification",d:"louder music · vibration",c:"#D03B44"},
+    {t:23,name:"Alarm",d:"clear alarm tone",c:"#E44C40"},
+    {t:25,name:"Louder alarm",d:"rising volume",c:"#EE573E"},
+    {t:26,name:"Emergency",d:"maximum · deadline",c:"#F2603F"},
+  ];
+  let deadline=8*60+50, win=26, enrolled=true, online=true;
+
+  const fmt=m=>{m=((m%1440)+1440)%1440;let h=Math.floor(m/60),mm=m%60;h=h%12||12;return h+":"+String(mm).padStart(2,"0");};
+
+  function renderPlan(){
+    document.getElementById("dlTime").textContent=fmt(deadline);
+    const begin=deadline-win;
+    document.getElementById("beginTime").textContent=fmt(begin);
+    document.getElementById("winMin").textContent=win;
+    document.getElementById("stageList").innerHTML=STAGES.map(s=>{
+      const time=fmt(begin+Math.round(s.t/26*win));
+      return `<div class="stage"><span class="dot" style="--c:${s.c};background:${s.c}"></span>`+
+        `<span class="t">${time}</span><span class="n">${s.name}</span><span class="dd">${s.d}</span></div>`;}).join("");
+  }
+  function bump(d,e){e&&e.stopPropagation();deadline+=d;renderPlan();}
+  function ladder(a){document.getElementById("ladder").innerHTML=STAGES.map((_,i)=>`<i class="${i<=a?'on':''}"></i>`).join("");}
+
+  /* history bars (which stages were reached before waking) */
+  function histBars(id,reached,c){document.getElementById(id).innerHTML=
+    STAGES.map((s,i)=>`<i style="height:${30+i*4}%;--c:${i<=reached?s.c:'rgba(255,255,255,.1)'}"></i>`).join("");}
+
+  /* ---------- navigation ---------- */
+  function go(v,btn){document.querySelectorAll(".view").forEach(x=>x.classList.toggle("active",x.dataset.view===v));
+    document.querySelectorAll(".tabbar button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+    document.querySelector(".screen").scrollTop=0;}
+  function toggleWake(){const c=document.getElementById("wakeCard");c.classList.toggle("collapsed");
+    document.getElementById("wakeChev").textContent=c.classList.contains("collapsed")?"􀄦":"􀄥";}
+  function toggleAlarm(id,e){if(e&&e.target.closest(".toggle"))return;document.getElementById(id).classList.toggle("open");}
+  function toggleNet(){online=!online;const c=document.getElementById("netChip");
+    c.classList.toggle("off",!online);c.textContent=online?"􀙇 Online — Gemini available":"􀙤 Offline — local only";}
+
+  /* ---------- fancy hold-to-speak ---------- */
+  let holdTimer=null,busy=false;
+  const hold=document.getElementById("holdBtn");
+  function startHold(e){if(busy)return;e.preventDefault();hold.classList.add("holding");
+    document.getElementById("holdHint").innerHTML="Keep holding…";
+    holdTimer=setTimeout(()=>{hold.classList.remove("holding");resetProg();talk();},1150);}
+  function endHold(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}
+    if(!busy){hold.classList.remove("holding");resetProg();document.getElementById("holdHint").innerHTML='Hold to say <b>“I’m awake”</b>';}}
+  function resetProg(){const p=document.getElementById("holdProg");p.style.transition="none";p.style.strokeDashoffset="635";
+    requestAnimationFrame(()=>{p.style.transition="";});}
+  hold.addEventListener("pointerdown",startHold);
+  hold.addEventListener("pointerup",endHold);
+  hold.addEventListener("pointerleave",endHold);
+  hold.addEventListener("pointercancel",endHold);
+
+  /* ---------- voice check (local → Gemini every time online) ---------- */
+  function talk(){
+    busy=true;
+    const feed=document.getElementById("voiceFeed"),hint=document.getElementById("holdHint");
+    feed.classList.remove("warn");feed.innerHTML="Recording your “I’m awake”…";hint.innerHTML="Listening…";
+    setTimeout(()=>{
+      const clarity=Math.round(Math.random()*62+30);   // 30–92% on-device clarity
+      // Offline → decide on-device only (nothing leaves the phone).
+      if(!online){
+        if(clarity>=65)acc(feed,"Offline — clear enough on-device (<b>"+clarity+"%</b>). ☀️");
+        else rej(feed,"Offline — too slurred (<b>"+clarity+"%</b>). Still half-asleep.");
+        return finish(clarity>=65,hint);
+      }
+      // Online + clearly clear → accept locally, no Gemini call.
+      if(clarity>=80){acc(feed,'Clear <b>“I’m awake”</b> ('+clarity+'% on-device) — good morning. ☀️');return finish(true,hint);}
+      // Online + unsure → ask Gemini to judge this clip.
+      feed.innerHTML='Not sure ('+clarity+'%) — sending this clip to <b>Gemini</b> to judge…';
+      setTimeout(()=>{
+        const wordsOk=Math.random()<0.85;
+        if(!wordsOk){rej(feed,'Gemini heard <b>“…where’s my coffee”</b> — that’s not “I’m awake”.');return finish(false,hint);}
+        const ok=Math.random()<(judgment/100+0.15);
+        if(ok)acc(feed,'Gemini: <b>“I’m awake” ✓</b>, spoken clearly — good morning. ☀️');
+        else rej(feed,'Gemini: <b>“I’m awake” ✓</b> but slurred — you still sound groggy.');
+        finish(ok,hint);
+      },1400);
+    },1000);
+  }
+  function acc(f,h){f.classList.remove("warn");f.innerHTML=h;ladder(6);}
+  function rej(f,h){f.classList.add("warn");f.innerHTML=h;}
+  function finish(ok,hint){busy=false;hint.innerHTML=ok?"You’re up ☀️":'Hold to say <b>“I’m awake”</b>';}
+  function stillWaking(){const f=document.getElementById("voiceFeed");f.classList.remove("warn");
+    f.innerHTML="Okay — <b>softening</b> the next step, a little more time. No fixed snooze.";}
+
+  /* ---------- onboarding ---------- */
+  let obStep=0,obDeadline=8*60+50,obSpeed=null;
+  const SPEEDS=[
+    {k:"immediate",oi:"⚡️",b:"Up immediately",s:"I’m out of bed at the first sound",win:12},
+    {k:"sometime",oi:"􀟪",b:"In a little while",s:"I need a few minutes to surface",win:26},
+    {k:"many",oi:"􀋚",b:"4–5 alarms",s:"I fight it — keep escalating",win:42},
+  ];
+  function dots(n){return '<div class="obdots">'+[0,1,2].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')+'</div>';}
+  function renderOb(){
+    const c=document.getElementById("obCard");
+    if(obStep===0){c.innerHTML=dots(0)+
+      `<div class="obtitle">Wake up on a curve</div>
+       <div class="obsub">Tell Wake when you need to be up and how you wake — it builds a personal wake-up plan, then learns every morning.</div>
+       <button class="obbtn" onclick="obNext()">Get started</button>`;}
+    else if(obStep===1){c.innerHTML=dots(1)+
+      `<div class="obtitle">When must you be awake?</div>
+       <div class="obsub">Not when the alarm rings — when you need to be <i>out of bed</i>.</div>
+       <div class="obtime">${fmt(obDeadline)}<span class="ap"> AM</span></div>
+       <div class="obnudge"><button onclick="obT(-15)">−15</button><button onclick="obT(-5)">−5</button><button onclick="obT(5)">+5</button><button onclick="obT(15)">+15</button></div>
+       <button class="obbtn" onclick="obNext()">Continue</button>`;}
+    else if(obStep===2){c.innerHTML=dots(2)+
+      `<div class="obtitle">How fast do you wake?</div>
+       <div class="obsub">This sets how early and how gently your first plan begins.</div>
+       <div class="opts">`+SPEEDS.map((s,i)=>
+         `<div class="opt ${obSpeed===i?'sel':''}" onclick="obPick(${i})"><div class="oi">${s.oi}</div><div class="ot"><b>${s.b}</b><span>${s.s}</span></div></div>`).join('')+
+       `</div><button class="obbtn" id="obDone" ${obSpeed===null?'disabled':''} onclick="obFinish()">Build my plan</button>`;}
+  }
+  function obNext(){obStep++;renderOb();}
+  function obT(d){obDeadline+=d;renderOb();}
+  function obPick(i){obSpeed=i;renderOb();}
+  function obFinish(){
+    deadline=obDeadline;win=SPEEDS[obSpeed].win;renderPlan();
+    document.getElementById("onboard").classList.remove("show");
+  }
+
+  /* ---------- init ---------- */
+  ladder(2);renderPlan();renderOb();
+  histBars("hb1",4,"#E44C40");histBars("hb2",6,"#F2603F");
+</script>
