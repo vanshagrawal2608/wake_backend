@@ -84,9 +84,10 @@ final class VoiceWakeVerifier: VoiceWakeVerifying {
 
         lastClipData = try? Data(contentsOf: url)
 
-        // 2) Recognise the recording on-device.
+        // 2) Recognise the recording. Prefer on-device (private) when the model is
+        //    available; on the Simulator it isn't, so fall back to server recognition.
         let request = SFSpeechURLRecognitionRequest(url: url)
-        request.requiresOnDeviceRecognition = true
+        request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
         request.addsPunctuation = false
 
         let result: SFSpeechRecognitionResult? = await withCheckedContinuation { cont in

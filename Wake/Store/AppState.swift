@@ -4,13 +4,9 @@ import Observation
 /// Single source of truth. Owns the services and exposes just what the UI needs.
 @Observable
 final class AppState {
-    // Persisted user intent
-    var deadline: WakeDeadline {
-        didSet { recomputePlan() }
-    }
+    // The user's alarms (a person can have several — e.g. morning + evening).
+    private(set) var alarms: [Alarm]
 
-    // Derived
-    private(set) var plan: WakePlan
     var records: [WakeRecord] { store.records }
 
     // Live wake session (nil when not actively waking)
@@ -47,7 +43,6 @@ final class AppState {
         self.learning = LearningEngine(store: store)
         self.scheduler = scheduler
         self.voice = voice
-        self.deadline = .default
 
         // Seed the prediction model's cold-start from the persisted wake-speed, using
         // locals so we don't touch `self` before every stored property is initialized.
@@ -55,11 +50,49 @@ final class AppState {
         var engine = prediction
         engine.model = HeuristicWakeDurationModel(coldStart: speed.coldStartMinutes)
         self.prediction = engine
-        self.plan = engine.plan(deadline: .default, inputs: LearningEngine(store: store).inputs())
+        self.alarms = AppState.loadAlarms() ?? [Alarm(deadline: .default, label: "Morning")]
     }
 
-    func recomputePlan() {
-        plan = prediction.plan(deadline: deadline, inputs: learning.inputs())
+    // MARK: - Plans
+
+    /// The timed wake plan for a given alarm (sunrise curve + stages).
+    func plan(for alarm: Alarm) -> WakePlan {
+        prediction.plan(deadline: alarm.deadline, inputs: learning.inputs())
+    }
+
+    /// The soonest enabled alarm — what the live wake experience targets.
+    var nextAlarm: Alarm? {
+        alarms.filter(\.isEnabled).min { $0.deadline.minutesFromMidnight < $1.deadline.minutesFromMidnight }
+    }
+    var currentPlan: WakePlan {
+        plan(for: nextAlarm ?? alarms.first ?? Alarm(deadline: .default, label: "Alarm"))
+    }
+
+    // MARK: - Alarm CRUD
+
+    func addAlarm(hour: Int = 7, minute: Int = 0, label: String = "Alarm") {
+        alarms.append(Alarm.new(hour: hour, minute: minute, label: label))
+        saveAlarms()
+    }
+    func deleteAlarm(_ alarm: Alarm) {
+        alarms.removeAll { $0.id == alarm.id }; saveAlarms()
+    }
+    func update(_ alarm: Alarm) {
+        guard let i = alarms.firstIndex(where: { $0.id == alarm.id }) else { return }
+        alarms[i] = alarm; saveAlarms()
+    }
+
+    private static let alarmsKey = "wake.alarms"
+    private func saveAlarms() {
+        if let data = try? JSONEncoder.wake.encode(alarms) {
+            UserDefaults.standard.set(data, forKey: AppState.alarmsKey)
+        }
+    }
+    private static func loadAlarms() -> [Alarm]? {
+        guard let data = UserDefaults.standard.data(forKey: alarmsKey),
+              let a = try? JSONDecoder.wake.decode([Alarm].self, from: data), !a.isEmpty
+        else { return nil }
+        return a
     }
 
     /// Reconcile last night's sleep start from iOS history (call each morning / on open).
@@ -70,25 +103,21 @@ final class AppState {
         lastSleepEstimate = await sleep.reconcile(for: .now)
     }
 
-    func nudgeDeadline(minutes: Int) {
-        deadline.minutesFromMidnight += minutes
-    }
-
-    /// Finish onboarding: set the deadline and the wake-speed that seeds the first plan.
+    /// Finish onboarding: create the first alarm + set the wake-speed that seeds plans.
     func completeOnboarding(deadline: WakeDeadline, wakeSpeed: WakeSpeed) {
-        self.deadline = deadline
         self.wakeSpeed = wakeSpeed
         UserDefaults.standard.set(wakeSpeed.rawValue, forKey: "wake.speed")
         hasOnboarded = true
         prediction.model = HeuristicWakeDurationModel(coldStart: wakeSpeed.coldStartMinutes)
-        recomputePlan()
+        alarms = [Alarm(deadline: deadline, label: "Morning")]
+        saveAlarms()
     }
 
     /// Advance the live soundscape to a stage's intensity (the audible ramp layer).
     func enterStage(_ index: Int) {
-        guard plan.stages.indices.contains(index) else { return }
-        let stage = plan.stages[index]
-        audio.play(soundscape: stage.sound, targetIntensity: stage.intensity)
+        let stages = currentPlan.stages
+        guard stages.indices.contains(index) else { return }
+        audio.play(soundscape: stages[index].sound, targetIntensity: stages[index].intensity)
     }
 
     /// Decide whether the morning utterance means "awake" — local clarity first,
@@ -104,18 +133,9 @@ final class AppState {
         voice.stop()
     }
 
-    /// Arm tonight's alarm ladder.
-    func arm() {
-        recomputePlan()
-        Task {
-            await scheduler.requestAuthorization()
-            await scheduler.schedule(plan)
-        }
-    }
-
     // MARK: - Stats (feeds Insights)
 
-    var stats: WakeStats { WakeStats(records: store.records, deadline: deadline) }
+    var stats: WakeStats { WakeStats(records: store.records) }
 }
 
 /// Live morning session — drives the Wake screen.
@@ -134,7 +154,6 @@ struct WakeSession {
 /// Rolled-up statistics for the dashboard.
 struct WakeStats {
     let records: [WakeRecord]
-    let deadline: WakeDeadline
 
     var averageWakeDuration: Double {
         let d = records.compactMap(\.wakeDurationMinutes)

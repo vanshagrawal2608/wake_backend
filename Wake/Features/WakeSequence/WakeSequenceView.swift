@@ -11,7 +11,7 @@ struct WakeSequenceView: View {
     @State private var reading: Wakefulness?
     @State private var decision: WakeDecision?
 
-    private var stage: WakeStage { app.plan.stages[min(stageIndex, app.plan.stages.count - 1)] }
+    private var stage: WakeStage { app.currentPlan.stages[min(stageIndex, app.currentPlan.stages.count - 1)] }
     private var color: Color { Theme.intensity(stage.intensity) }
 
     var body: some View {
@@ -46,7 +46,7 @@ struct WakeSequenceView: View {
                 .blur(radius: 6)
                 .modifier(Breathe())
             VStack(spacing: 3) {
-                MicroLabel(text: "Stage \(stage.id + 1) of \(app.plan.stages.count)")
+                MicroLabel(text: "Stage \(stage.id + 1) of \(app.currentPlan.stages.count)")
                 Text(stage.name).font(.system(size: 26, weight: .heavy))
                 Text(stage.detail).font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.muted)
             }
@@ -56,7 +56,7 @@ struct WakeSequenceView: View {
 
     private var ladder: some View {
         HStack(spacing: 6) {
-            ForEach(app.plan.stages) { s in
+            ForEach(app.currentPlan.stages) { s in
                 Capsule()
                     .fill(s.id <= stageIndex ? color : Color.white.opacity(0.12))
                     .frame(width: 26, height: 6)
@@ -113,7 +113,10 @@ struct WakeSequenceView: View {
                 let via = d.source == .gemini ? "confirmed by Gemini" : "on-device"
                 return "Clear “I’m awake” (\(via)). Good morning. ☀️"
             case .groggy where !d.heardPhrase:
-                return "Didn’t catch it — say exactly “I’m awake”."
+                let heard = reading?.transcript ?? ""
+                return heard.isEmpty
+                    ? "I didn’t hear anything — check mic access, then say “I’m awake”."
+                    : "Heard “\(heard)” — say exactly “I’m awake”."
             case .groggy:
                 return d.reasoning
             default:
@@ -152,7 +155,7 @@ struct WakeSequenceView: View {
         listening = false; decision = d
         if d.isAwake {
             voice = .awake; app.confirmAwake()
-            withAnimation(.snappy) { stageIndex = app.plan.stages.count - 1 }
+            withAnimation(.snappy) { stageIndex = app.currentPlan.stages.count - 1 }
         } else {
             voice = .groggy
         }
@@ -170,7 +173,7 @@ struct WakeSequenceView: View {
                               transcript: clear ? "I'm awake" : "i'm… awake", isFinal: true)
         decision = d
         listening = false
-        if clear { voice = .awake; app.confirmAwake(); withAnimation(.snappy) { stageIndex = app.plan.stages.count - 1 } }
+        if clear { voice = .awake; app.confirmAwake(); withAnimation(.snappy) { stageIndex = app.currentPlan.stages.count - 1 } }
         else { voice = .groggy }
     }
 

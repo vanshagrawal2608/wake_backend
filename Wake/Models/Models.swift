@@ -15,6 +15,20 @@ struct WakeDeadline: Codable, Equatable {
     }
 }
 
+// MARK: - Alarm
+
+/// One scheduled wake-up. A person can have several (e.g. a morning and an evening one).
+struct Alarm: Identifiable, Codable, Equatable {
+    var id = UUID()
+    var deadline: WakeDeadline
+    var label: String
+    var isEnabled: Bool = true
+
+    static func new(hour: Int = 7, minute: Int = 0, label: String = "Alarm") -> Alarm {
+        Alarm(deadline: WakeDeadline(minutesFromMidnight: hour * 60 + minute), label: label)
+    }
+}
+
 // MARK: - Stages
 
 /// One rung of the escalation ladder. `intensity` 0…1 drives both sound and colour.
