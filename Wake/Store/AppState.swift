@@ -95,6 +95,13 @@ final class AppState {
         await judge.judge(clarity: clarity, heardPhrase: heardPhrase, morningAudio: morningAudio)
     }
 
+    /// Warm the free-tier backend before the user speaks, so the /judge call isn't a
+    /// 30–60s cold start at 6am. Fire this when the wake sequence begins.
+    func prewarmJudge() async {
+        guard Config.cloudMatchEnabled, let url = Config.matchBackendURL else { return }
+        _ = try? await URLSession.shared.data(from: url.appendingPathComponent("healthz"))
+    }
+
     /// Confirmed awake — stop everything.
     func confirmAwake() {
         audio.stop()

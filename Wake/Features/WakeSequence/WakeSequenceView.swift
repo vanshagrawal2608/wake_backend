@@ -27,6 +27,7 @@ struct WakeSequenceView: View {
             .background(NightBackground())
             .navigationTitle("Waking you")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await app.prewarmJudge() }   // warm the backend before the user speaks
         }
     }
 

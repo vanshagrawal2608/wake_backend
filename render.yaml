@@ -1,0 +1,17 @@
+# Render blueprint — deploys the Wake voice-judge backend on the free tier.
+# In Render: New → Blueprint → connect this repo. Then set the two secret env vars
+# (GEMINI_API_KEY, WAKE_APP_SECRET) in the dashboard when prompted.
+services:
+  - type: web
+    name: wake-judge
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # you paste this in the dashboard; never in git
+      - key: WAKE_APP_SECRET
+        sync: false
