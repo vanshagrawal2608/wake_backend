@@ -70,8 +70,8 @@ final class AppState {
 
     // MARK: - Alarm CRUD
 
-    func addAlarm(hour: Int = 7, minute: Int = 0, label: String = "Alarm") {
-        alarms.append(Alarm.new(hour: hour, minute: minute, label: label))
+    func addAlarm(deadline: WakeDeadline, label: String) {
+        alarms.append(Alarm(deadline: deadline, label: label.isEmpty ? "Alarm" : label))
         saveAlarms()
     }
     func deleteAlarm(_ alarm: Alarm) {
@@ -114,10 +114,46 @@ final class AppState {
     }
 
     /// Advance the live soundscape to a stage's intensity (the audible ramp layer).
+    /// Uses the alarm's imported audio (voice/music) if set, else the default tone.
     func enterStage(_ index: Int) {
         let stages = currentPlan.stages
         guard stages.indices.contains(index) else { return }
-        audio.play(soundscape: stages[index].sound, targetIntensity: stages[index].intensity)
+        let intensity = stages[index].intensity
+        if let alarm = nextAlarm, let url = audioURL(for: alarm) {
+            audio.playCustom(url: url, targetIntensity: intensity)
+        } else {
+            audio.play(soundscape: stages[index].sound, targetIntensity: intensity)
+        }
+    }
+
+    // MARK: - Custom alarm audio (import a voice/music clip per alarm)
+
+    static var soundsDir: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("AlarmSounds")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    func audioURL(for alarm: Alarm) -> URL? {
+        guard let name = alarm.customAudioFilename else { return nil }
+        let url = AppState.soundsDir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Copy a picked audio file into the app's sounds folder and attach it to the alarm.
+    func setAudio(from pickedURL: URL, for alarm: Alarm) {
+        let scoped = pickedURL.startAccessingSecurityScopedResource()
+        defer { if scoped { pickedURL.stopAccessingSecurityScopedResource() } }
+        let filename = "\(UUID().uuidString)-\(pickedURL.lastPathComponent)"
+        let dest = AppState.soundsDir.appendingPathComponent(filename)
+        guard (try? FileManager.default.copyItem(at: pickedURL, to: dest)) != nil else { return }
+        var a = alarm; a.customAudioFilename = filename; update(a)
+    }
+
+    func clearAudio(for alarm: Alarm) {
+        if let url = audioURL(for: alarm) { try? FileManager.default.removeItem(at: url) }
+        var a = alarm; a.customAudioFilename = nil; update(a)
     }
 
     /// Decide whether the morning utterance means "awake" — local clarity first,

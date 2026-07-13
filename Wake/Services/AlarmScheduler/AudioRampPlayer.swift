@@ -18,6 +18,19 @@ final class AudioRampPlayer {
         ramp(to: volume(for: targetIntensity), over: duration)
     }
 
+    /// Play an imported clip (e.g. a "wake up" voice) as the wake sound, looping and
+    /// ramping up to full at the emergency stage — same audio, same accent as recorded.
+    func playCustom(url: URL, targetIntensity: Double, over duration: TimeInterval = 20) {
+        configureSession()
+        if player == nil {
+            player = try? AVAudioPlayer(contentsOf: url)
+            player?.numberOfLoops = -1
+            player?.volume = Float(volume(for: currentIntensity))
+            player?.play()
+        }
+        ramp(to: volume(for: targetIntensity), over: duration)
+    }
+
     func stop() {
         rampTimer?.invalidate(); rampTimer = nil
         player?.setVolume(0, fadeDuration: 1.5)

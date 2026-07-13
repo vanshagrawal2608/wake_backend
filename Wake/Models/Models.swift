@@ -23,6 +23,19 @@ struct Alarm: Identifiable, Codable, Equatable {
     var deadline: WakeDeadline
     var label: String
     var isEnabled: Bool = true
+    /// Filename of an imported audio clip in Documents/AlarmSounds/ (nil = default tone).
+    /// Import a voice clip ("wake up!") and it plays — in that voice — escalating to the
+    /// emergency stage.
+    var customAudioFilename: String?
+
+    /// User-facing name of the chosen sound.
+    var soundName: String {
+        guard let f = customAudioFilename else { return "Default" }
+        // strip the UUID prefix we add on import for a clean label
+        let base = (f as NSString).lastPathComponent
+        if let dash = base.firstIndex(of: "-") { return (String(base[base.index(after: dash)...]) as NSString).deletingPathExtension }
+        return (base as NSString).deletingPathExtension
+    }
 
     static func new(hour: Int = 7, minute: Int = 0, label: String = "Alarm") -> Alarm {
         Alarm(deadline: WakeDeadline(minutesFromMidnight: hour * 60 + minute), label: label)

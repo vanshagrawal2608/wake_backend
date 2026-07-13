@@ -4,6 +4,7 @@ import SwiftUI
 /// short context window (recent behaviour is weighted highest when planning tomorrow).
 struct HistoryView: View {
     @Environment(AppState.self) private var app
+    @State private var showPattern = false
 
     /// Most recent first, capped at 2.
     private var recent: [WakeRecord] {
@@ -17,6 +18,19 @@ struct HistoryView: View {
                     Text("Your last two mornings, and how the plan played out.")
                         .font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.muted)
 
+                    Button { showPattern = true } label: {
+                        HStack {
+                            Image(systemName: "waveform.path.ecg")
+                            Text("See your wake-up pattern").fontWeight(.bold)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold))
+                        }
+                        .font(.system(size: 16)).foregroundStyle(Color(hex: 0x20090C))
+                        .padding(16)
+                        .background(LinearGradient(colors: [Theme.i2, Theme.i3], startPoint: .leading, endPoint: .trailing),
+                                    in: RoundedRectangle(cornerRadius: 18))
+                    }
+
                     ForEach(recent) { rec in card(rec) }
 
                     Text("Wake keeps only your last 2 mornings in context — recent behaviour is weighted highest when planning tomorrow.")
@@ -26,6 +40,7 @@ struct HistoryView: View {
             }
             .background(NightBackground())
             .navigationTitle("History")
+            .sheet(isPresented: $showPattern) { WakePatternView() }
         }
     }
 

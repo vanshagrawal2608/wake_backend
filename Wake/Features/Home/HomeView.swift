@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// "Home" — your alarms. Each alarm is a card; tap it to expand its wake-up plan.
 /// A person can keep several (e.g. a morning and an evening one).
@@ -6,6 +7,9 @@ struct HomeView: View {
     @Environment(AppState.self) private var app
     @State private var showWake = false
     @State private var expandedID: UUID?
+    @State private var showAddAlarm = false
+    @State private var importingAlarm: Alarm?
+    @State private var showImporter = false
 
     var body: some View {
         NavigationStack {
@@ -31,13 +35,21 @@ struct HomeView: View {
             .navigationTitle("Home")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        app.addAlarm(hour: 7, minute: 0, label: "Alarm")
-                        if let last = app.alarms.last { withAnimation(.snappy) { expandedID = last.id } }
-                    } label: { Label("Add alarm", systemImage: "plus") }
+                    Button { showAddAlarm = true } label: { Label("Add alarm", systemImage: "plus") }
                 }
             }
             .fullScreenCover(isPresented: $showWake) { WakeSequenceView() }
+            .sheet(isPresented: $showAddAlarm) {
+                AddAlarmView { deadline, label in
+                    app.addAlarm(deadline: deadline, label: label)
+                    if let last = app.alarms.last { expandedID = last.id }
+                }
+            }
+            .fileImporter(isPresented: $showImporter, allowedContentTypes: [.audio]) { result in
+                if case .success(let url) = result, let alarm = importingAlarm {
+                    app.setAudio(from: url, for: alarm)
+                }
+            }
             .task { await app.refreshSleep() }
         }
     }
@@ -84,6 +96,8 @@ struct HomeView: View {
             Text("Wake window begins ~\(TimeFmt.clock(plan.windowStart))")
                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.i2)
 
+            soundRow(alarm)
+
             SunriseCurve().frame(height: 110)
             HStack { Text("gentle · maroon"); Spacer(); Text("emergency · ember") }
                 .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.faint)
@@ -100,6 +114,28 @@ struct HomeView: View {
             .tint(Theme.i2)
             .padding(.top, 4)
         }
+    }
+
+    /// Per-alarm wake sound: import a voice/music clip, or reset to default.
+    private func soundRow(_ alarm: Alarm) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "speaker.wave.3.fill").font(.system(size: 15)).foregroundStyle(Theme.i2)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Wake sound").font(.system(size: 14, weight: .semibold))
+                Text(alarm.customAudioFilename == nil
+                     ? "Default tone — import a voice/track"
+                     : alarm.soundName)
+                    .font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
+            }
+            Spacer()
+            if alarm.customAudioFilename != nil {
+                Button("Default") { app.clearAudio(for: alarm) }
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.muted)
+            }
+            Button("Import") { importingAlarm = alarm; showImporter = true }
+                .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.i2)
+        }
+        .padding(.vertical, 4)
     }
 
     // MARK: - Bindings
