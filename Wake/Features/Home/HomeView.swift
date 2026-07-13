@@ -10,6 +10,7 @@ struct HomeView: View {
     @State private var showAddAlarm = false
     @State private var importingAlarm: Alarm?
     @State private var showImporter = false
+    @State private var personalVoiceAlarm: Alarm?
 
     var body: some View {
         NavigationStack {
@@ -50,6 +51,7 @@ struct HomeView: View {
                     app.setAudio(from: url, for: alarm)
                 }
             }
+            .sheet(item: $personalVoiceAlarm) { alarm in PersonalVoiceSetupView(alarm: alarm) }
             .task { await app.refreshSleep() }
         }
     }
@@ -128,12 +130,21 @@ struct HomeView: View {
                     .font(.system(size: 12)).foregroundStyle(Theme.muted).lineLimit(1)
             }
             Spacer()
-            if alarm.customAudioFilename != nil {
-                Button("Default") { app.clearAudio(for: alarm) }
-                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.muted)
+            Menu {
+                Button { importingAlarm = alarm; showImporter = true } label: {
+                    Label("Import from Files", systemImage: "square.and.arrow.down")
+                }
+                Button { personalVoiceAlarm = alarm } label: {
+                    Label("Wake me in my voice", systemImage: "waveform.badge.mic")
+                }
+                if alarm.customAudioFilename != nil {
+                    Button(role: .destructive) { app.clearAudio(for: alarm) } label: {
+                        Label("Default tone", systemImage: "arrow.uturn.backward")
+                    }
+                }
+            } label: {
+                Text("Change").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.i2)
             }
-            Button("Import") { importingAlarm = alarm; showImporter = true }
-                .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.i2)
         }
         .padding(.vertical, 4)
     }

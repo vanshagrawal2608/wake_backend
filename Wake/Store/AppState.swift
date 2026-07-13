@@ -156,6 +156,21 @@ final class AppState {
         var a = alarm; a.customAudioFilename = nil; update(a)
     }
 
+    // MARK: - Personal Voice wake line (free, on-device, your own voice)
+
+    let personalVoice = PersonalVoiceSpeaker()
+
+    /// Render a wake-up line in the user's Personal Voice and set it as the alarm's sound.
+    func setPersonalVoiceAudio(text: String, for alarm: Alarm) async -> Bool {
+        guard let rendered = await personalVoice.render(text: text) else { return false }
+        let filename = "\(UUID().uuidString)-My voice.caf"
+        let dest = AppState.soundsDir.appendingPathComponent(filename)
+        try? FileManager.default.removeItem(at: dest)
+        guard (try? FileManager.default.moveItem(at: rendered, to: dest)) != nil else { return false }
+        var a = alarm; a.customAudioFilename = filename; update(a)
+        return true
+    }
+
     /// Decide whether the morning utterance means "awake" — local clarity first,
     /// Gemini when unsure (single clip, no baseline). Never blocks: offline falls back.
     func judgeAwake(clarity: Double, heardPhrase: Bool, morningAudio: Data?) async -> WakeDecision {
